@@ -16,7 +16,6 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
 
-	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* FollowCamera;
 
@@ -67,6 +66,25 @@ protected:
 	void LookUpAtRate(float Rate);
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay|Projectile")
+	TSubclassOf<class AGameProjectile> ProjectileClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay")
+	float FireRate;
+
+	bool bIsFiringWeapon;
+
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void StartFire();
+
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void StopFire();
+
+	UFUNCTION(Server, Reliable)
+	void HandleFire();
+
+	FTimerHandle FiringTimer;
 
 public:	
 	// Called every frame

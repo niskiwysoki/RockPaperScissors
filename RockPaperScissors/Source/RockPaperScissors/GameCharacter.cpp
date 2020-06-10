@@ -11,6 +11,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/Engine.h"
+#include "GameProjectile.h"
 
 // Sets default values
 AGameCharacter::AGameCharacter()
@@ -42,6 +43,13 @@ AGameCharacter::AGameCharacter()
 	PrimaryActorTick.bCanEverTick = true;
 	MaxHealth = 100.0f;
 	CurrentHealth = MaxHealth;
+
+	//Initialize projectile class
+	ProjectileClass = AGameProjectile::StaticClass();
+
+	//Initialize fire rate
+	FireRate = 0.25f;
+	bIsFiringWeapon = false;
 }
 
 void AGameCharacter::BeginPlay()
@@ -67,6 +75,37 @@ void AGameCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AGameCharacter::LookUpAtRate);
 
+	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AGameCharacter::StartFire);
+
+}
+
+void AGameCharacter::StartFire()
+{
+	if (!bIsFiringWeapon)
+	{
+		bIsFiringWeapon = true;
+		UWorld* World = GetWorld();
+		World->GetTimerManager().SetTimer(FiringTimer, this, &AGameCharacter::StopFire, FireRate, false);
+		HandleFire();
+	}
+}
+
+void AGameCharacter::StopFire()
+{
+	bIsFiringWeapon = false;
+}
+
+void AGameCharacter::HandleFire_Implementation()
+{
+	FVector spawnLocation = GetActorLocation() + (GetControlRotation().Vector()  * 100.0f) + (GetActorUpVector() * 50.0f);
+	FRotator spawnRotation = GetControlRotation();
+
+	FActorSpawnParameters spawnParameters;
+	spawnParameters.Instigator = Instigator;
+	spawnParameters.Owner = this;
+
+	AGameProjectile* spawnedProjectile = GetWorld()->SpawnActor<AGameProjectile>(ProjectileClass, spawnLocation, spawnRotation, spawnParameters);
+	//AGameProjectile* spawnedProjectile = GetWorld()->SpawnActor<AGameProjectile>(spawnLocation, spawnRotation, spawnParameters);
 }
 
 void AGameCharacter::TurnAtRate(float Rate)
