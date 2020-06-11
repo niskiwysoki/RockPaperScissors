@@ -18,8 +18,8 @@ AGameCharacter::AGameCharacter()
 {
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
-	BaseTurnRate = 45.f;
-	BaseLookUpRate = 45.f;
+	m_BaseTurnRate = 45.f;
+	m_BaseLookUpRate = 45.f;
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -30,14 +30,14 @@ AGameCharacter::AGameCharacter()
 	GetCharacterMovement()->JumpZVelocity = 600.f;
 	GetCharacterMovement()->AirControl = 0.2f;
 
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 300.0f; 
-	CameraBoom->bUsePawnControlRotation = true; 
+	m_CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+	m_CameraBoom->SetupAttachment(RootComponent);
+	m_CameraBoom->TargetArmLength = 300.0f; 
+	m_CameraBoom->bUsePawnControlRotation = true; 
 
-	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
-	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+	m_FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
+	m_FollowCamera->SetupAttachment(m_CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
+	m_FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
 
 	PrimaryActorTick.bCanEverTick = true;
@@ -101,7 +101,7 @@ void AGameCharacter::HandleFire_Implementation()
 	FRotator spawnRotation = GetControlRotation();
 
 	FActorSpawnParameters spawnParameters;
-	spawnParameters.Instigator = Instigator;
+	spawnParameters.Instigator = GetInstigator();
 	spawnParameters.Owner = this;
 
 	AGameProjectile* spawnedProjectile = GetWorld()->SpawnActor<AGameProjectile>(ProjectileClass, spawnLocation, spawnRotation, spawnParameters);
@@ -111,13 +111,13 @@ void AGameCharacter::HandleFire_Implementation()
 void AGameCharacter::TurnAtRate(float Rate)
 {
 	// calculate delta for this frame from the rate information
-	AddControllerYawInput(Rate * BaseTurnRate * GetWorld()->GetDeltaSeconds());
+	AddControllerYawInput(Rate * m_BaseTurnRate * GetWorld()->GetDeltaSeconds());
 }
 
 void AGameCharacter::LookUpAtRate(float Rate)
 {
 	// calculate delta for this frame from the rate information
-	AddControllerPitchInput(Rate * BaseLookUpRate * GetWorld()->GetDeltaSeconds());
+	AddControllerPitchInput(Rate * m_BaseLookUpRate * GetWorld()->GetDeltaSeconds());
 }
 
 void AGameCharacter::MoveForward(float Value)
@@ -159,7 +159,7 @@ void AGameCharacter::GetLifetimeReplicatedProps(TArray <FLifetimeProperty> & Out
 
 void AGameCharacter::SetCurrentHealth(float healthValue)
 {
-	if (Role == ROLE_Authority)
+	if (HasAuthority())
 	{
 		CurrentHealth = FMath::Clamp(healthValue, 0.f, MaxHealth);
 		OnHealthUpdate();
@@ -190,7 +190,7 @@ void AGameCharacter::OnHealthUpdate()
 	}
 
 	//Server-specific functionality
-	if (Role == ROLE_Authority)
+	if (HasAuthority())
 	{
 		FString healthMessage = FString::Printf(TEXT("%s now has %f health remaining."), *GetFName().ToString(), CurrentHealth);
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, healthMessage);

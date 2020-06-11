@@ -22,7 +22,7 @@ AGameProjectile::AGameProjectile()
 	SphereComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
 	RootComponent = SphereComponent;
 
-	if (Role == ROLE_Authority)
+	if (HasAuthority())
 	{
 		SphereComponent->OnComponentHit.AddDynamic(this, &AGameProjectile::OnProjectileImpact);
 	}
@@ -60,7 +60,7 @@ void AGameProjectile::OnProjectileImpact(UPrimitiveComponent* HitComponent, AAct
 {
 	if (OtherActor)
 	{
-		UGameplayStatics::ApplyPointDamage(OtherActor, Damage, NormalImpulse, Hit, Instigator->Controller, this, DamageType);
+		UGameplayStatics::ApplyPointDamage(OtherActor, Damage, NormalImpulse, Hit, GetInstigator()->Controller, this, DamageType);
 	}
 
 	Destroy();

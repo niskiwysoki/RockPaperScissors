@@ -6,38 +6,20 @@
 #include "GameFramework/Actor.h"
 #include "GameProjectile.generated.h"
 
+class UProjectileMovementComponent;
+class UStaticMeshComponent;
+class USphereComponent;
+class UParticleSystem;
+
 UCLASS()
 class ROCKPAPERSCISSORS_API AGameProjectile : public AActor
 {
 	GENERATED_BODY()
 	
 public:	
-	// Sets default values for this actor's properties
 	AGameProjectile();
 
-	// Sphere component used to test collision.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	class USphereComponent* SphereComponent;
-
-	// Static Mesh used to provide a visual representation of the object.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	class UStaticMeshComponent* StaticMesh;
-
-	// Movement component for handling projectile movement.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	class UProjectileMovementComponent* ProjectileMovementComponent;
-
-	// Particle used when the projectile impacts against another object and explodes.
-	UPROPERTY(EditAnywhere, Category = "Effects")
-	class UParticleSystem* ExplosionEffect;
-
-	//The damage type and damage that will be done by this projectile
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
-	TSubclassOf<class UDamageType> DamageType;
-
-	//The damage dealt by this projectile.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage")
-	float Damage;
+	virtual void Tick(float DeltaTime) override;
 
 
 protected:
@@ -49,8 +31,24 @@ protected:
 	UFUNCTION(Category = "Projectile")
 	void OnProjectileImpact(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+private:
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	USphereComponent* SphereComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UStaticMeshComponent* StaticMesh;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UProjectileMovementComponent* ProjectileMovementComponent;
+
+	UPROPERTY(EditAnywhere, Category = "Effects", meta = (AllowPrivateAccess = "true"))
+	UParticleSystem* ExplosionEffect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<class UDamageType> DamageType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage", meta = (AllowPrivateAccess = "true"))
+	float Damage;
 
 };
