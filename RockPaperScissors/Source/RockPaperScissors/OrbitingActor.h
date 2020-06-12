@@ -9,6 +9,23 @@
 class USphereComponent;
 class URotatingMovementComponent;
 
+UENUM()
+enum SphereType
+{
+	Rock,
+	Paper,
+	Scissors,
+	MAX_NUMBER
+};
+
+USTRUCT()
+struct FStaticMeshCompStruct
+{
+	GENERATED_BODY()
+	SphereType type = MAX_NUMBER;
+	UStaticMeshComponent* staticMeshComp = nullptr;
+};
+
 UCLASS()
 class ROCKPAPERSCISSORS_API AOrbitingActor : public AActor
 {
@@ -26,8 +43,6 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UStaticMeshComponent* GetStaticMesh() const { return m_StaticMesh; }
-
 
 private:
 
@@ -35,9 +50,17 @@ private:
 	USceneComponent* m_RootComp;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* m_StaticMesh;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	URotatingMovementComponent* m_RotatingMovementComp;
+
+	UPROPERTY(EditAnywhere, Category = "Components", meta = (AllowPrivateAccess = "true"))
+	UStaticMesh* m_StaticMesh;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Spheres", meta = (AllowPrivateAccess = "true"))
+	float m_RadiusOfRotation;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Spheres", meta = (AllowPrivateAccess = "true"))
+	int32 m_NumberOfSpheres;
+
+	TArray<FStaticMeshCompStruct> m_SpheresArray;
 
 };

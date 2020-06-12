@@ -6,6 +6,11 @@
 #include "GameFramework/Character.h"
 #include "GameCharacter.generated.h"
 
+class AOrbitingActor;
+class USpringArmComponent;
+class UCameraComponent;
+class AGameProjectile;
+
 UCLASS()
 class ROCKPAPERSCISSORS_API AGameCharacter : public ACharacter
 {
@@ -15,6 +20,8 @@ public:
 	// Sets default values for this character's properties
 	AGameCharacter();
 
+	virtual void Tick(float DeltaTime) override;
+
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	UFUNCTION(BlueprintPure, Category = "Health")
@@ -22,6 +29,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Health")
 	FORCEINLINE float GetCurrentHealth() const { return CurrentHealth; }
+
+	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return m_CameraBoom; }
+	FORCEINLINE UCameraComponent* GetFollowCamera() const { return m_FollowCamera; }
 
 	/** Setter for Current Health. Clamps the value between 0 and MaxHealth and calls OnHealthUpdate. Should only be called on the server.*/
 	UFUNCTION(BlueprintCallable, Category = "Health")
@@ -42,25 +52,6 @@ protected:
 	UFUNCTION()
 	void OnRep_CurrentHealth();
 
-	virtual void BeginPlay() override;
-
-	void OnHealthUpdate();
-
-	void MoveForward(float Value);
-	void MoveRight(float Value);
-	void TurnAtRate(float Rate);
-	void LookUpAtRate(float Rate);
-
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Gameplay|Projectile")
-	TSubclassOf<class AGameProjectile> ProjectileClass;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Gameplay")
-	float FireRate;
-
-	bool bIsFiringWeapon;
-
 	UFUNCTION(BlueprintCallable, Category = "Gameplay")
 	void StartFire();
 
@@ -70,25 +61,41 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void HandleFire();
 
-	FTimerHandle FiringTimer;
+	virtual void BeginPlay() override;
 
-public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return m_CameraBoom; }
-	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return m_FollowCamera; }
+	void OnHealthUpdate();
+
+	void MoveForward(float Value);
+	void MoveRight(float Value);
+	void TurnAtRate(float Rate);
+	void LookUpAtRate(float Rate);
 
 private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class USpringArmComponent* m_CameraBoom;
+	USpringArmComponent* m_CameraBoom;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class UCameraComponent* m_FollowCamera;
+	UCameraComponent* m_FollowCamera;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	float m_BaseTurnRate;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	float m_BaseLookUpRate;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay|Projectile", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<AGameProjectile> ProjectileClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
+	float m_FireRate;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UChildActorComponent* m_OrbitingSpheres;
+
+	FTimerHandle m_FiringTimer;
+
+	bool m_bIsFiringWeapon;
+
 };

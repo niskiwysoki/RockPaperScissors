@@ -12,6 +12,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Engine/Engine.h"
 #include "GameProjectile.h"
+#include "OrbitingActor.h"
 
 // Sets default values
 AGameCharacter::AGameCharacter()
@@ -32,24 +33,28 @@ AGameCharacter::AGameCharacter()
 
 	m_CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	m_CameraBoom->SetupAttachment(RootComponent);
-	m_CameraBoom->TargetArmLength = 300.0f; 
+	m_CameraBoom->TargetArmLength = 500.0f; 
 	m_CameraBoom->bUsePawnControlRotation = true; 
 
 	m_FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	m_FollowCamera->SetupAttachment(m_CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	m_FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
+	m_OrbitingSpheres = CreateDefaultSubobject<UChildActorComponent>(TEXT("Orbiting Spheres"));
+	m_OrbitingSpheres->SetupAttachment(RootComponent);
+	
 
 	PrimaryActorTick.bCanEverTick = true;
 	MaxHealth = 100.0f;
 	CurrentHealth = MaxHealth;
 
+
 	//Initialize projectile class
 	ProjectileClass = AGameProjectile::StaticClass();
 
 	//Initialize fire rate
-	FireRate = 0.25f;
-	bIsFiringWeapon = false;
+	m_FireRate = 0.25f;
+	m_bIsFiringWeapon = false;
 }
 
 void AGameCharacter::BeginPlay()
@@ -67,9 +72,6 @@ void AGameCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAxis("MoveForward", this, &AGameCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AGameCharacter::MoveRight);
 
-	// We have 2 versions of the rotation bindings to handle different kinds of devices differently
-	// "turn" handles devices that provide an absolute delta, such as a mouse.
-	// "turnrate" is for devices that we choose to treat as a rate of change, such as an analog joystick
 	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
 	PlayerInputComponent->BindAxis("TurnRate", this, &AGameCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
@@ -81,18 +83,18 @@ void AGameCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 
 void AGameCharacter::StartFire()
 {
-	if (!bIsFiringWeapon)
+	if (!m_bIsFiringWeapon)
 	{
-		bIsFiringWeapon = true;
+		m_bIsFiringWeapon = true;
 		UWorld* World = GetWorld();
-		World->GetTimerManager().SetTimer(FiringTimer, this, &AGameCharacter::StopFire, FireRate, false);
+		World->GetTimerManager().SetTimer(m_FiringTimer, this, &AGameCharacter::StopFire, m_FireRate, false);
 		HandleFire();
 	}
 }
 
 void AGameCharacter::StopFire()
 {
-	bIsFiringWeapon = false;
+	m_bIsFiringWeapon = false;
 }
 
 void AGameCharacter::HandleFire_Implementation()

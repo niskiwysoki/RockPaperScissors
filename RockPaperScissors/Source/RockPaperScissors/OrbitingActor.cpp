@@ -5,6 +5,8 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/RotatingMovementComponent.h"
+#include "Kismet/KismetTextLibrary.h"
+#include "Internationalization/Text.h"
 
 // Sets default values
 AOrbitingActor::AOrbitingActor()
@@ -16,11 +18,21 @@ AOrbitingActor::AOrbitingActor()
 	m_RootComp = CreateDefaultSubobject<USceneComponent>(TEXT("SceneComponent"));
 	RootComponent = m_RootComp;
 	
-	m_StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
-	m_StaticMesh->SetupAttachment(RootComponent);
-
 	m_RotatingMovementComp = CreateDefaultSubobject<URotatingMovementComponent>(TEXT("RotatingMovementComponent"));
 	m_RotatingMovementComp->SetUpdatedComponent(RootComponent);
+
+	m_RadiusOfRotation = 500.f;
+	m_NumberOfSpheres = 3;
+	
+
+	//for (int32 i = 0; i < m_NumberOfSpheres; i++)
+	//{
+	//	FString IntAsString = FString::FromInt(i);
+	//	UStaticMeshComponent* staticMesh = CreateDefaultSubobject<UStaticMeshComponent>(*IntAsString);
+	//	staticMesh->SetupAttachment(RootComponent);
+	//	m_SpheresArray.Push(staticMesh);
+	//}
+
 
 	bReplicates = true;
 }
@@ -30,6 +42,28 @@ void AOrbitingActor::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	for (int32 i = 0; i < m_NumberOfSpheres; i++)
+	{
+		FString IntAsString = FString::FromInt(i);
+		UStaticMeshComponent* staticMeshComp = NewObject<UStaticMeshComponent>(this, UStaticMeshComponent::StaticClass(),*IntAsString);
+		if (staticMeshComp)
+		{
+			staticMeshComp->SetupAttachment(RootComponent);
+			double radians = (2 * PI * i / m_NumberOfSpheres);
+			FVector NewLocation = FVector(cos(radians)*m_RadiusOfRotation, sin(radians)*m_RadiusOfRotation, 0.f);
+			staticMeshComp->SetWorldLocation(GetActorLocation() + NewLocation);
+			staticMeshComp->SetStaticMesh(m_StaticMesh);
+			staticMeshComp->RegisterComponent();
+
+			FStaticMeshCompStruct meshStruct;
+			meshStruct.staticMeshComp = staticMeshComp;
+			meshStruct.type = SphereType(i % 3);
+			m_SpheresArray.Push(meshStruct);
+		}
+	}
+
+
+
 }
 
 // Called every frame
