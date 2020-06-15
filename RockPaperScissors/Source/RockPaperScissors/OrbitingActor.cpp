@@ -54,6 +54,7 @@ void AOrbitingActor::BeginPlay()
 			staticMeshComp->SetWorldLocation(GetActorLocation() + NewLocation);
 			staticMeshComp->SetStaticMesh(m_StaticMesh);
 			staticMeshComp->RegisterComponent();
+			staticMeshComp->SetMaterial(0, m_MaterialsArray[i % 3]);
 
 			FStaticMeshCompStruct meshStruct;
 			meshStruct.staticMeshComp = staticMeshComp;

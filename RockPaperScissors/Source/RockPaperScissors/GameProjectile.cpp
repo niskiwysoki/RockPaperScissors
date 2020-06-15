@@ -17,22 +17,22 @@ AGameProjectile::AGameProjectile()
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
 
-	SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("RootComponent"));
-	SphereComponent->InitSphereRadius(37.5f);
-	SphereComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
-	RootComponent = SphereComponent;
+	m_SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("RootComponent"));
+	m_SphereComponent->InitSphereRadius(37.5f);
+	m_SphereComponent->SetCollisionProfileName(TEXT("BlockAllDynamic"));
+	RootComponent = m_SphereComponent;
 
 	if (HasAuthority())
 	{
-		SphereComponent->OnComponentHit.AddDynamic(this, &AGameProjectile::OnProjectileImpact);
+		m_SphereComponent->OnComponentHit.AddDynamic(this, &AGameProjectile::OnProjectileImpact);
 	}
 
 	//Definition for the Mesh that will serve as our visual representation.
-	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
-	StaticMesh->SetupAttachment(RootComponent);
+	m_StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
+	m_StaticMesh->SetupAttachment(RootComponent);
 
 	ProjectileMovementComponent = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovement"));
-	ProjectileMovementComponent->SetUpdatedComponent(SphereComponent);
+	ProjectileMovementComponent->SetUpdatedComponent(m_SphereComponent);
 	ProjectileMovementComponent->InitialSpeed = 1500.0f;
 	ProjectileMovementComponent->MaxSpeed = 1500.0f;
 	ProjectileMovementComponent->bRotationFollowsVelocity = true;

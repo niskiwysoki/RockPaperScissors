@@ -73,6 +73,7 @@ protected:
 	void LookUpAtRate(float Rate);
 
 private:
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* m_CameraBoom;
 
@@ -88,10 +89,16 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay|Projectile", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<AGameProjectile> ProjectileClass;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
+	UChildActorComponent* m_WeaponActor;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
+	USkeletalMeshComponent* m_WeaponSK;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
 	float m_FireRate;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
 	UChildActorComponent* m_OrbitingSpheres;
 
 	FTimerHandle m_FiringTimer;

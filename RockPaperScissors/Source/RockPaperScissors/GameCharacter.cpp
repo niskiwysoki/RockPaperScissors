@@ -13,6 +13,7 @@
 #include "Engine/Engine.h"
 #include "GameProjectile.h"
 #include "OrbitingActor.h"
+#include "Components/SkeletalMeshComponent.h"
 
 // Sets default values
 AGameCharacter::AGameCharacter()
@@ -42,7 +43,11 @@ AGameCharacter::AGameCharacter()
 
 	m_OrbitingSpheres = CreateDefaultSubobject<UChildActorComponent>(TEXT("Orbiting Spheres"));
 	m_OrbitingSpheres->SetupAttachment(RootComponent);
-	
+	m_OrbitingSpheres->SetAbsolute(false, true, false);		// Spheres rotating independent of actor's orientation
+
+	m_WeaponSK = CreateDefaultSubobject <USkeletalMeshComponent>(TEXT("WeaponSK"));
+	FAttachmentTransformRules AttachmentTransformRules(EAttachmentRule::SnapToTarget, false);
+	m_WeaponSK->AttachToComponent(GetMesh(), AttachmentTransformRules, "WeaponSocket");
 
 	PrimaryActorTick.bCanEverTick = true;
 	MaxHealth = 100.0f;
@@ -107,7 +112,7 @@ void AGameCharacter::HandleFire_Implementation()
 	spawnParameters.Owner = this;
 
 	AGameProjectile* spawnedProjectile = GetWorld()->SpawnActor<AGameProjectile>(ProjectileClass, spawnLocation, spawnRotation, spawnParameters);
-	//AGameProjectile* spawnedProjectile = GetWorld()->SpawnActor<AGameProjectile>(spawnLocation, spawnRotation, spawnParameters);
+	
 }
 
 void AGameCharacter::TurnAtRate(float Rate)

@@ -61,6 +61,11 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Spheres", meta = (AllowPrivateAccess = "true"))
 	int32 m_NumberOfSpheres;
 
+	UPROPERTY(EditAnywhere, Category = "Spheres", meta = (AllowPrivateAccess = "true"))
+	TArray<UMaterial*> m_MaterialsArray;
+
 	TArray<FStaticMeshCompStruct> m_SpheresArray;
+
+	
 
 };
