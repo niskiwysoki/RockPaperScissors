@@ -18,10 +18,18 @@
 // Sets default values
 AGameCharacter::AGameCharacter()
 {
-	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+	
+	//bindings
+	m_FireRate = 0.25f;
+	m_bIsFiringWeapon = false;
+	m_bIsAiming = false;
+	m_bIsCrouching = false;
 
 	m_BaseTurnRate = 45.f;
 	m_BaseLookUpRate = 45.f;
+
+	m_CrouchingMovementSlowRatio = 0.7;
+	m_AimingMovementSlowRatio = 0.5;
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -32,6 +40,9 @@ AGameCharacter::AGameCharacter()
 	GetCharacterMovement()->JumpZVelocity = 600.f;
 	GetCharacterMovement()->AirControl = 0.2f;
 
+	//components
+	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+
 	m_CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	m_CameraBoom->SetupAttachment(RootComponent);
 	m_CameraBoom->TargetArmLength = 500.0f; 
@@ -40,6 +51,9 @@ AGameCharacter::AGameCharacter()
 	m_FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	m_FollowCamera->SetupAttachment(m_CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	m_FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+	m_FieldOfView = 90.f;
+	m_FieldOfViewWhileAiming = 60.f;
+	m_FollowCamera->SetFieldOfView(m_FieldOfView);
 
 	m_OrbitingSpheres = CreateDefaultSubobject<UChildActorComponent>(TEXT("Orbiting Spheres"));
 	m_OrbitingSpheres->SetupAttachment(RootComponent);
@@ -49,17 +63,13 @@ AGameCharacter::AGameCharacter()
 	FAttachmentTransformRules AttachmentTransformRules(EAttachmentRule::SnapToTarget, false);
 	m_WeaponSK->AttachToComponent(GetMesh(), AttachmentTransformRules, "WeaponSocket");
 
+	ProjectileClass = AGameProjectile::StaticClass();
+
+
 	PrimaryActorTick.bCanEverTick = true;
 	MaxHealth = 100.0f;
 	CurrentHealth = MaxHealth;
-
-
-	//Initialize projectile class
-	ProjectileClass = AGameProjectile::StaticClass();
-
-	//Initialize fire rate
-	m_FireRate = 0.25f;
-	m_bIsFiringWeapon = false;
+	
 }
 
 void AGameCharacter::BeginPlay()
@@ -73,6 +83,11 @@ void AGameCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 	check(PlayerInputComponent);
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AGameCharacter::StartFire);
+	PlayerInputComponent->BindAction("Aim", IE_Pressed, this, &AGameCharacter::Aim);
+	PlayerInputComponent->BindAction("Aim", IE_Released, this, &AGameCharacter::StopAiming);
+	PlayerInputComponent->BindAction("Crouch", IE_Pressed, this, &AGameCharacter::StartCrouching);
+	PlayerInputComponent->BindAction("Crouch", IE_Released, this, &AGameCharacter::StopCrouching);
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &AGameCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &AGameCharacter::MoveRight);
@@ -81,8 +96,6 @@ void AGameCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAxis("TurnRate", this, &AGameCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AGameCharacter::LookUpAtRate);
-
-	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AGameCharacter::StartFire);
 
 }
 
@@ -100,6 +113,29 @@ void AGameCharacter::StartFire()
 void AGameCharacter::StopFire()
 {
 	m_bIsFiringWeapon = false;
+}
+
+void AGameCharacter::Aim()
+{
+	m_bIsAiming = true;
+	SetActorTickEnabled(true);
+}
+
+void AGameCharacter::StopAiming()
+{
+	m_bIsAiming = false;
+}
+
+void AGameCharacter::StartCrouching()
+{
+	m_bIsCrouching = true;
+	Crouch();
+}
+
+void AGameCharacter::StopCrouching()
+{
+	m_bIsCrouching = false;
+	UnCrouch();
 }
 
 void AGameCharacter::HandleFire_Implementation()
@@ -137,6 +173,12 @@ void AGameCharacter::MoveForward(float Value)
 
 		// get forward vector
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+
+		if (IsCrouching())
+			Value *= m_CrouchingMovementSlowRatio;
+		if (IsAiming())
+			Value *= m_AimingMovementSlowRatio;
+
 		AddMovementInput(Direction, Value);
 	}
 }
@@ -151,6 +193,10 @@ void AGameCharacter::MoveRight(float Value)
 
 		// get right vector 
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+		if (IsCrouching())
+			Value *= m_CrouchingMovementSlowRatio;
+		if (IsAiming())
+			Value *= m_AimingMovementSlowRatio;
 		// add movement in that direction
 		AddMovementInput(Direction, Value);
 	}
@@ -218,6 +264,32 @@ void AGameCharacter::OnRep_CurrentHealth()
 void AGameCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (IsAiming())
+	{
+		m_FollowCamera->FieldOfView -= (m_FieldOfView - m_FieldOfViewWhileAiming) * DeltaTime * 5;
+		m_FollowCamera->FieldOfView = FMath::Clamp(m_FollowCamera->FieldOfView, m_FieldOfViewWhileAiming, m_FieldOfView);
+		
+		float DeltaRotation = (GetControlRotation().Yaw - GetMesh()->GetForwardVector().Rotation().Yaw) * DeltaTime;
+		float newYaw = GetMesh()->GetRelativeRotation().Yaw + DeltaRotation;
+		//SetActorRotation(FRotator(0.f,GetActorRotation().Yaw + DeltaRotation,0.f));
+		GetMesh()->SetRelativeRotation(FRotator(0, newYaw, 0));
+
+
+		GEngine->AddOnScreenDebugMessage(-1, 0, FColor::Red, FString::SanitizeFloat(GetActorRotation().Yaw));
+		GEngine->AddOnScreenDebugMessage(-1, 0, FColor::Red, FString::SanitizeFloat(GetControlRotation().Yaw));
+		//bUseControllerRotationYaw = true;
+	}
+	else
+	{
+		m_FollowCamera->FieldOfView += (m_FieldOfView - m_FieldOfViewWhileAiming) * DeltaTime *5;
+		m_FollowCamera->FieldOfView = FMath::Clamp(m_FollowCamera->FieldOfView, m_FieldOfViewWhileAiming, m_FieldOfView);
+		if (FMath::IsNearlyZero(m_FieldOfView - m_FollowCamera->FieldOfView, 1.f))
+		{
+			SetActorTickEnabled(false);
+			bUseControllerRotationYaw = false;
+		}
+	}
 
 }
 

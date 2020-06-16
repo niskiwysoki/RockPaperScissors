@@ -41,6 +41,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	float TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
+	UFUNCTION(BlueprintPure, Category = "Animations")
+	bool IsAiming() const { return m_bIsAiming; }
+
+	void SetIsAiming(bool val) { m_bIsAiming = val; }
+
+	UFUNCTION(BlueprintPure, Category = "Animations")
+	bool IsCrouching() const { return m_bIsCrouching; }
+
+	void SetIsCrouching(bool val) { m_bIsCrouching = val; }
+
 protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Health")
@@ -58,6 +68,18 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "Gameplay")
 	void StopFire();
 
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void Aim();
+
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void StopAiming();
+	
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void StartCrouching();
+
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void StopCrouching();
+
 	UFUNCTION(Server, Reliable)
 	void HandleFire();
 
@@ -74,16 +96,16 @@ protected:
 
 private:
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* m_CameraBoom;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* m_FollowCamera;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	float m_BaseTurnRate;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	float m_BaseLookUpRate;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay|Projectile", meta = (AllowPrivateAccess = "true"))
@@ -101,8 +123,24 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
 	UChildActorComponent* m_OrbitingSpheres;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Aiming", meta = (AllowPrivateAccess = "true"))
+	float m_CrouchingMovementSlowRatio;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Aiming", meta = (AllowPrivateAccess = "true"))
+	float m_AimingMovementSlowRatio;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Aiming", meta = (AllowPrivateAccess = "true"))
+	float m_FieldOfView;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Aiming", meta = (AllowPrivateAccess = "true"))
+	float m_FieldOfViewWhileAiming;
+
 	FTimerHandle m_FiringTimer;
 
+	bool m_bIsAiming;
+	bool m_bIsCrouching;
 	bool m_bIsFiringWeapon;
+
+
 
 };
