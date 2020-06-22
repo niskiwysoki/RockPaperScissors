@@ -28,7 +28,7 @@ public:
 	FORCEINLINE float GetMaxHealth() const { return MaxHealth; }
 
 	UFUNCTION(BlueprintPure, Category = "Health")
-	FORCEINLINE float GetCurrentHealth() const { return CurrentHealth; }
+	FORCEINLINE float GetCurrentHealth() const { return m_CurrentHealth; }
 
 	FORCEINLINE USpringArmComponent* GetCameraBoom() const { return m_CameraBoom; }
 	FORCEINLINE UCameraComponent* GetFollowCamera() const { return m_FollowCamera; }
@@ -51,13 +51,18 @@ public:
 
 	void SetIsCrouching(bool val) { m_bIsCrouching = val; }
 
+	UFUNCTION(BlueprintPure, Category = "Animations")
+	bool IsLeapPressed() const { return m_bIsLeapPressed; }
+
+	void SetIsLeapPressed(bool val) { m_bIsLeapPressed = val; }
+
 protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Health")
 	float MaxHealth;
 
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentHealth)
-	float CurrentHealth;
+	float m_CurrentHealth;
 
 	UFUNCTION()
 	void OnRep_CurrentHealth();
@@ -73,12 +78,26 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "Gameplay")
 	void StopAiming();
+
+	UFUNCTION(BlueprintCallable, Category = "Gameplay")
+	void Leap();
+
+	void StopLeaping();
+
+	UFUNCTION(Server, Reliable)
+	void Server_SetIsAiming(bool isAiming);
 	
 	UFUNCTION(BlueprintCallable, Category = "Gameplay")
 	void StartCrouching();
 
 	UFUNCTION(BlueprintCallable, Category = "Gameplay")
 	void StopCrouching();
+
+	UFUNCTION(Server, Reliable)
+	void Server_SetIsCrouching(bool IsCrouching);
+
+	UFUNCTION(Server, Reliable)
+	void Server_SetIsLeaping(bool IsJumping);
 
 	UFUNCTION(Server, Reliable)
 	void HandleFire();
@@ -136,11 +155,17 @@ private:
 	float m_FieldOfViewWhileAiming;
 
 	FTimerHandle m_FiringTimer;
+	FTimerHandle m_LeapTimer;
 
+	UPROPERTY(Replicated)
 	bool m_bIsAiming;
+
+	UPROPERTY(Replicated)
 	bool m_bIsCrouching;
+
+	UPROPERTY(Replicated)
+	bool m_bIsLeapPressed;
+	
 	bool m_bIsFiringWeapon;
-
-
 
 };

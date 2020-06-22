@@ -14,6 +14,7 @@
 #include "GameProjectile.h"
 #include "OrbitingActor.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Kismet/KismetStringLibrary.h"
 
 // Sets default values
 AGameCharacter::AGameCharacter()
@@ -24,6 +25,7 @@ AGameCharacter::AGameCharacter()
 	m_bIsFiringWeapon = false;
 	m_bIsAiming = false;
 	m_bIsCrouching = false;
+	m_bIsLeapPressed = false;
 
 	m_BaseTurnRate = 45.f;
 	m_BaseLookUpRate = 45.f;
@@ -37,15 +39,15 @@ AGameCharacter::AGameCharacter()
 
 	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
 	GetCharacterMovement()->RotationRate = FRotator(0.0f, 540.0f, 0.0f); // ...at this rotation rate
-	GetCharacterMovement()->JumpZVelocity = 600.f;
-	GetCharacterMovement()->AirControl = 0.2f;
+	GetCharacterMovement()->JumpZVelocity = 350.f;
+	GetCharacterMovement()->AirControl = 0.3f;
 
 	//components
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
 	m_CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	m_CameraBoom->SetupAttachment(RootComponent);
-	m_CameraBoom->TargetArmLength = 500.0f; 
+	m_CameraBoom->TargetArmLength = 600.0f; 
 	m_CameraBoom->bUsePawnControlRotation = true; 
 
 	m_FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
@@ -68,7 +70,7 @@ AGameCharacter::AGameCharacter()
 
 	PrimaryActorTick.bCanEverTick = true;
 	MaxHealth = 100.0f;
-	CurrentHealth = MaxHealth;
+	m_CurrentHealth = MaxHealth;
 	
 }
 
@@ -81,8 +83,8 @@ void AGameCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInpu
 {
 	// Set up gameplay key bindings
 	check(PlayerInputComponent);
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
-	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AGameCharacter::Leap);
+	//PlayerInputComponent->BindAction("Jump", IE_Released, this, &AGameCharacter::StopLeaping);
 	PlayerInputComponent->BindAction("Fire", IE_Pressed, this, &AGameCharacter::StartFire);
 	PlayerInputComponent->BindAction("Aim", IE_Pressed, this, &AGameCharacter::Aim);
 	PlayerInputComponent->BindAction("Aim", IE_Released, this, &AGameCharacter::StopAiming);
@@ -117,25 +119,55 @@ void AGameCharacter::StopFire()
 
 void AGameCharacter::Aim()
 {
-	m_bIsAiming = true;
+	Server_SetIsAiming(true);
 	SetActorTickEnabled(true);
 }
 
 void AGameCharacter::StopAiming()
 {
-	m_bIsAiming = false;
+	Server_SetIsAiming(false);
+}
+
+void AGameCharacter::Leap()
+{
+	Server_SetIsLeaping(true);
+}
+
+void AGameCharacter::Server_SetIsAiming_Implementation(bool isAiming)
+{
+	m_bIsAiming = isAiming;
 }
 
 void AGameCharacter::StartCrouching()
 {
-	m_bIsCrouching = true;
-	Crouch();
+	Server_SetIsCrouching(true);
 }
 
 void AGameCharacter::StopCrouching()
 {
-	m_bIsCrouching = false;
-	UnCrouch();
+	Server_SetIsCrouching(false);
+}
+
+void AGameCharacter::Server_SetIsLeaping_Implementation(bool IsJumping)
+{
+	if(!IsLeapPressed())
+	{
+		m_bIsLeapPressed = IsJumping;
+		GetWorld()->GetTimerManager().SetTimer(m_LeapTimer, this, &AGameCharacter::Server_SetIsLeaping, 1.3f, false);
+	}
+	else
+	{
+		m_bIsLeapPressed = false;
+	}
+}
+
+void AGameCharacter::Server_SetIsCrouching_Implementation(bool IsCrouching)
+{
+	m_bIsCrouching = IsCrouching;
+	if (IsCrouching)
+		Crouch();
+	else
+		UnCrouch();
 }
 
 void AGameCharacter::HandleFire_Implementation()
@@ -148,7 +180,6 @@ void AGameCharacter::HandleFire_Implementation()
 	spawnParameters.Owner = this;
 
 	AGameProjectile* spawnedProjectile = GetWorld()->SpawnActor<AGameProjectile>(ProjectileClass, spawnLocation, spawnRotation, spawnParameters);
-	
 }
 
 void AGameCharacter::TurnAtRate(float Rate)
@@ -207,21 +238,24 @@ void AGameCharacter::GetLifetimeReplicatedProps(TArray <FLifetimeProperty> & Out
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	//Replicate current health.
-	DOREPLIFETIME(AGameCharacter, CurrentHealth);
+	DOREPLIFETIME(AGameCharacter, m_CurrentHealth);
+	DOREPLIFETIME(AGameCharacter, m_bIsAiming);
+	DOREPLIFETIME(AGameCharacter, m_bIsCrouching);
+	DOREPLIFETIME(AGameCharacter, m_bIsLeapPressed);
 }
 
 void AGameCharacter::SetCurrentHealth(float healthValue)
 {
 	if (HasAuthority())
 	{
-		CurrentHealth = FMath::Clamp(healthValue, 0.f, MaxHealth);
+		m_CurrentHealth = FMath::Clamp(healthValue, 0.f, MaxHealth);
 		OnHealthUpdate();
 	}
 }
 
 float AGameCharacter::TakeDamage(float DamageTaken, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-	float damageApplied = CurrentHealth - DamageTaken;
+	float damageApplied = m_CurrentHealth - DamageTaken;
 	SetCurrentHealth(damageApplied);
 	return damageApplied;
 }
@@ -232,10 +266,10 @@ void AGameCharacter::OnHealthUpdate()
 	//Client-specific functionality
 	if (IsLocallyControlled())
 	{
-		FString healthMessage = FString::Printf(TEXT("You now have %f health remaining."), CurrentHealth);
+		FString healthMessage = FString::Printf(TEXT("You now have %f health remaining."), m_CurrentHealth);
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, healthMessage);
 
-		if (CurrentHealth <= 0)
+		if (m_CurrentHealth <= 0)
 		{
 			FString deathMessage = FString::Printf(TEXT("You have been killed."));
 			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, deathMessage);
@@ -245,7 +279,7 @@ void AGameCharacter::OnHealthUpdate()
 	//Server-specific functionality
 	if (HasAuthority())
 	{
-		FString healthMessage = FString::Printf(TEXT("%s now has %f health remaining."), *GetFName().ToString(), CurrentHealth);
+		FString healthMessage = FString::Printf(TEXT("%s now has %f health remaining."), *GetFName().ToString(), m_CurrentHealth);
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, healthMessage);
 	}
 
@@ -269,16 +303,6 @@ void AGameCharacter::Tick(float DeltaTime)
 	{
 		m_FollowCamera->FieldOfView -= (m_FieldOfView - m_FieldOfViewWhileAiming) * DeltaTime * 5;
 		m_FollowCamera->FieldOfView = FMath::Clamp(m_FollowCamera->FieldOfView, m_FieldOfViewWhileAiming, m_FieldOfView);
-		
-		float DeltaRotation = (GetControlRotation().Yaw - GetMesh()->GetForwardVector().Rotation().Yaw) * DeltaTime;
-		float newYaw = GetMesh()->GetRelativeRotation().Yaw + DeltaRotation;
-		//SetActorRotation(FRotator(0.f,GetActorRotation().Yaw + DeltaRotation,0.f));
-		GetMesh()->SetRelativeRotation(FRotator(0, newYaw, 0));
-
-
-		GEngine->AddOnScreenDebugMessage(-1, 0, FColor::Red, FString::SanitizeFloat(GetActorRotation().Yaw));
-		GEngine->AddOnScreenDebugMessage(-1, 0, FColor::Red, FString::SanitizeFloat(GetControlRotation().Yaw));
-		//bUseControllerRotationYaw = true;
 	}
 	else
 	{
@@ -286,11 +310,15 @@ void AGameCharacter::Tick(float DeltaTime)
 		m_FollowCamera->FieldOfView = FMath::Clamp(m_FollowCamera->FieldOfView, m_FieldOfViewWhileAiming, m_FieldOfView);
 		if (FMath::IsNearlyZero(m_FieldOfView - m_FollowCamera->FieldOfView, 1.f))
 		{
-			SetActorTickEnabled(false);
+			//SetActorTickEnabled(false);
 			bUseControllerRotationYaw = false;
 		}
 	}
 
+	//if(HasAuthority())
+		//GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Red, TEXT("Crouch pressed ") + UKismetStringLibrary::Conv_BoolToString(IsCrouching()));
+	//else	
+		//GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Red, TEXT("Client ") + UKismetStringLibrary::Conv_BoolToString(m_bIsAiming));
 }
 
 
