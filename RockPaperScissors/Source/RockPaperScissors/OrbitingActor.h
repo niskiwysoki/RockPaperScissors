@@ -8,23 +8,8 @@
 
 class USphereComponent;
 class URotatingMovementComponent;
-
-UENUM()
-enum SphereType
-{
-	Rock,
-	Paper,
-	Scissors,
-	MAX_NUMBER
-};
-
-USTRUCT()
-struct FStaticMeshCompStruct
-{
-	GENERATED_BODY()
-	SphereType type = MAX_NUMBER;
-	UStaticMeshComponent* staticMeshComp = nullptr;
-};
+class UOrbitingStaticMeshComponent;
+class AGameCharacter;
 
 UCLASS()
 class ROCKPAPERSCISSORS_API AOrbitingActor : public AActor
@@ -32,40 +17,80 @@ class ROCKPAPERSCISSORS_API AOrbitingActor : public AActor
 	GENERATED_BODY()
 	
 public:	
-	// Sets default values for this actor's properties
 	AOrbitingActor();
 
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
-
-public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	URotatingMovementComponent* GetRotatingMovementComp() const { return m_RotatingMovementComp; }
 
-private:
+	void SetParentCharacter();
+
+	TArray<UOrbitingStaticMeshComponent *> GetSpheresArray() const { return m_SpheresArray; }
+	
+	UFUNCTION()
+	void DeleteSpheres(int32 index);
+
+protected:
+	virtual void BeginPlay() override;
+
+	virtual void GenerateSpheres();
+
+	UFUNCTION()
+	void OnRep_SpheresArray();
+
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	URotatingMovementComponent* m_RotatingMovementComp;
 
 	UPROPERTY(VisibleAnywhere, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* m_RootComp;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	URotatingMovementComponent* m_RotatingMovementComp;
+	UPROPERTY(ReplicatedUsing = OnRep_SpheresArray)
+	TArray<UOrbitingStaticMeshComponent*> m_SpheresArray;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Spheres", meta = (AllowPrivateAccess = "true"))
+	int32 m_NumberOfSpheres;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Spheres", meta = (AllowPrivateAccess = "true"))
+	float m_RadiusOfRotation;
 
 	UPROPERTY(EditAnywhere, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UStaticMesh* m_StaticMesh;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Spheres", meta = (AllowPrivateAccess = "true"))
-	float m_RadiusOfRotation;
-	
-	UPROPERTY(EditDefaultsOnly, Category = "Spheres", meta = (AllowPrivateAccess = "true"))
-	int32 m_NumberOfSpheres;
-
 	UPROPERTY(EditAnywhere, Category = "Spheres", meta = (AllowPrivateAccess = "true"))
 	TArray<UMaterial*> m_MaterialsArray;
 
-	TArray<FStaticMeshCompStruct> m_SpheresArray;
+	AGameCharacter* m_GameCharacter;
 
+	FRotator m_CurrentRoation;
+
+	int32 m_IdCounter;
+};
+/******************************************************************************************************************************************************************************************************/
+/******************************************************************************************************************************************************************************************************/
+/******************************************************************************************************************************************************************************************************/
+DECLARE_DELEGATE_OneParam(OrbitActorDelegate, int32)
+
+UCLASS()
+class ROCKPAPERSCISSORS_API AOrbitingActorCollisionState : public AOrbitingActor
+{
+	GENERATED_BODY()
+
+public:
+	AOrbitingActorCollisionState();
+
+	virtual void BeginPlay() override;
 	
+	OrbitActorDelegate deleteSpheresDelegate;
+
+protected:
+	virtual void GenerateSpheres() override;
+
+	UFUNCTION()
+	void DestroySphres(int32 index);
+
+private:
 
 };

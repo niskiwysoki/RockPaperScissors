@@ -56,8 +56,11 @@ public:
 
 	void SetIsLeapPressed(bool val) { m_bIsLeapPressed = val; }
 
-protected:
+	float GetBaseRotationRate() const { return m_BaseRotationRate; }
+	UChildActorComponent* GetCollidingOrbitingSpheres() const { return m_CollidingOrbitingSpheres; }
+	UChildActorComponent* GetVisibleOrbitingSpheres() const { return m_VisibleOrbitingSpheres; }
 
+protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Health")
 	float MaxHealth;
 
@@ -99,10 +102,24 @@ protected:
 	UFUNCTION(Server, Reliable)
 	void Server_SetIsLeaping(bool IsJumping);
 
+	void SpeedUpSpheres();
+	void RestoreSpheresRotationSpeed();
+	void ChangeRotationDirection();
+
+	UFUNCTION(Server, Reliable)
+	void Server_SetRotationRateOfSpheres(float rotationRate, bool changeDirection = false);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void NetMulticast_SpheresRotationChangerate(float rot);
+
+
 	UFUNCTION(Server, Reliable)
 	void HandleFire();
 
+	
 	virtual void BeginPlay() override;
+
+	void BindDeleteSpheresDelegateIfNeeded();
 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
@@ -112,6 +129,7 @@ protected:
 	void MoveRight(float Value);
 	void TurnAtRate(float Rate);
 	void LookUpAtRate(float Rate);
+	void SetRotationRateOfSpheres(float rotationRate);
 
 private:
 
@@ -139,8 +157,23 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
 	float m_FireRate;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
+	float m_BoostedRotationRate;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
+	float m_BaseRotationRate;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
+	float m_InterpSpeed;
+
+	float m_CurrentRotationRate;
+	bool m_CurrentDirection;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
-	UChildActorComponent* m_OrbitingSpheres;
+	UChildActorComponent* m_CollidingOrbitingSpheres;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
+	UChildActorComponent* m_VisibleOrbitingSpheres;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Aiming", meta = (AllowPrivateAccess = "true"))
 	float m_CrouchingMovementSlowRatio;
@@ -156,6 +189,7 @@ private:
 
 	FTimerHandle m_FiringTimer;
 	FTimerHandle m_LeapTimer;
+	FTimerDelegate TimerDel;
 
 	UPROPERTY(Replicated)
 	bool m_bIsAiming;
@@ -167,5 +201,7 @@ private:
 	bool m_bIsLeapPressed;
 	
 	bool m_bIsFiringWeapon;
+
+	bool m_bDelegateBound;
 
 };
