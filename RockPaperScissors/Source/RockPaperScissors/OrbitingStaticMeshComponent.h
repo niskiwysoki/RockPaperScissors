@@ -33,14 +33,13 @@ public:
 
 	void DestroySphere();
 
-	OrbitCollisionCompDelegate DestroySphresDelegate;
+	OrbitCollisionCompDelegate destroyVisibleSpheresDelegate;
 
 	void SetId(int32 val) { m_Id = val; }
 	int32 GetId() const { return m_Id; }
 
 protected:
 	UFUNCTION(NetMulticast, Reliable)
-	//void NetMulticast_DestroyVisibleSpheres(AOrbitingActorCollisionState* collisionSpheresActor,int32 index);
 	void NetMulticast_DestroyVisibleSpheres();
 
 private:

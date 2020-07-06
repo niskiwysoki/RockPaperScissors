@@ -16,7 +16,7 @@ UOrbitingStaticMeshComponent::UOrbitingStaticMeshComponent(const FObjectInitiali
 	SetIsReplicatedByDefault(true);
 	SetGenerateOverlapEvents(false);
 }
-
+/******************************************************************************************************************************************************************************************************/
 void UOrbitingStaticMeshComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -24,8 +24,7 @@ void UOrbitingStaticMeshComponent::GetLifetimeReplicatedProps(TArray<FLifetimePr
 	DOREPLIFETIME(UOrbitingStaticMeshComponent, m_Type);
 	DOREPLIFETIME(UOrbitingStaticMeshComponent, m_Id);
 }
-
-
+/******************************************************************************************************************************************************************************************************/
 void UOrbitingStaticMeshComponent::OnOrbitingSphereOverlap(UPrimitiveComponent* OverlappedComp, AActor* Other, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	UOrbitingStaticMeshComponent* OtherSpehereComp = Cast<UOrbitingStaticMeshComponent>(OtherComp);
@@ -33,46 +32,26 @@ void UOrbitingStaticMeshComponent::OnOrbitingSphereOverlap(UPrimitiveComponent* 
 	{
 		if (OtherSpehereComp->GetType() == GetType())
 		{
-			/*DestroyOtherSpheres(OtherSpehereComp);
-			DestroyOtherSpheres(this);*/
-
 			OtherSpehereComp->DestroySphere();
 			DestroySphere();
 			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Black, TEXT("Orbs Deystoyd"));
 		}
 	}
 }
-
+/******************************************************************************************************************************************************************************************************/
 void UOrbitingStaticMeshComponent::DestroySphere()
 {
 	if (AOrbitingActorCollisionState* collsionOrbitingActor = Cast<AOrbitingActorCollisionState>(GetOwner()))
-		if (AGameCharacter* character = Cast<AGameCharacter>(collsionOrbitingActor->GetAttachParentActor()))
-			if (AOrbitingActorCollisionState* collisionSpheresActor = Cast<AOrbitingActorCollisionState>(character->GetCollidingOrbitingSpheres()->GetChildActor()))
-			{
-				int32 index = collisionSpheresActor->GetSpheresArray().Find(this);
-				//NetMulticast_DestroyVisibleSpheres(collisionSpheresActor, index);
-				NetMulticast_DestroyVisibleSpheres();
-				DestroyComponent();
-				collisionSpheresActor->GetSpheresArray().RemoveAt(index);
-			}
-			else
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Black, TEXT("Failed cast to collisionSpheresActor"));
-		else
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Black, TEXT("Failed cast to gameCharacter"));
+	{
+		NetMulticast_DestroyVisibleSpheres();
+		DestroyComponent();
+		collsionOrbitingActor->DestroySphere(m_Id);
+	}	
 	else
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Black, TEXT("Failed cast to orbit actor"));
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Black, TEXT("Failed cast to collision orbit actor"));
 }
-
-//void UOrbitingStaticMeshComponent::NetMulticast_DestroyVisibleSpheres_Implementation(AOrbitingActorCollisionState* collisionSpheresActor, int32 index)
-//{
-//	AGameCharacter* character = Cast<AGameCharacter>(collisionSpheresActor->GetAttachParentActor());
-//	AOrbitingActor* visibleSpheresActor = Cast<AOrbitingActor>(character->GetVisibleOrbitingSpheres()->GetChildActor());
-//	visibleSpheresActor->GetSpheresArray()[index]->DestroyComponent();
-//	visibleSpheresActor->GetSpheresArray().RemoveAt(index);
-//	DestroySphresDelegate.ExecuteIfBound(this);
-//}
-
+/******************************************************************************************************************************************************************************************************/
 void UOrbitingStaticMeshComponent::NetMulticast_DestroyVisibleSpheres_Implementation()
 {
-	DestroySphresDelegate.ExecuteIfBound(m_Id);
+	destroyVisibleSpheresDelegate.ExecuteIfBound(m_Id);
 }

@@ -129,7 +129,7 @@ protected:
 	void MoveRight(float Value);
 	void TurnAtRate(float Rate);
 	void LookUpAtRate(float Rate);
-	void SetRotationRateOfSpheres(float rotationRate);
+	void SetRotationRateOfVisSpheres(float rotationRate, bool changeDirection = false);
 
 private:
 
@@ -201,7 +201,6 @@ private:
 	bool m_bIsLeapPressed;
 	
 	bool m_bIsFiringWeapon;
-
-	bool m_bDelegateBound;
-
+	bool m_bDelegatesBound;
+	bool m_bIsZooming;
 };

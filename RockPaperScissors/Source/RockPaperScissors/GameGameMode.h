@@ -14,4 +14,12 @@ class ROCKPAPERSCISSORS_API AGameGameMode : public AGameMode
 {
 	GENERATED_BODY()
 	
+	AGameGameMode(const FObjectInitializer &ObjectInitialize);
+
+	virtual void PostLogin(APlayerController * NewPlayer) override;
+
+	void SetIdsToPlayers(APlayerController * newPlayer);
+
+private:
+	static int32 s_PlayerIdCounter;
 };

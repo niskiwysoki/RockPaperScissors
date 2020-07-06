@@ -17,9 +17,12 @@ class ROCKPAPERSCISSORS_API AGamePlayerState : public APlayerState
 public:
 	AGamePlayerState(const FObjectInitializer &ObjectInitialize);
 
+	int32 GetPlayerId() const { return m_PlayerId; }
+	void SetPlayerId(int32 val) { m_PlayerId = val; }
+
 protected:
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PlayerInfo")
+	UPROPERTY(Replicated)
 	int32 m_PlayerId;
 
 private:
