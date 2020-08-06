@@ -26,21 +26,7 @@ AOrbitingActor::AOrbitingActor()
 	m_RotatingMovementComp = CreateDefaultSubobject<URotatingMovementComponent>(TEXT("RotatingMovementComponent"));
 	m_RotatingMovementComp->SetUpdatedComponent(RootComponent);
 	m_RotatingMovementComp->SetIsReplicated(false);
-	m_RotatingMovementComp->RotationRate.SetComponentForAxis(EAxis::Z, 80.f);
-
-	m_RadiusOfRotation = 500.f;
-	m_CurrentRoation = FRotator::ZeroRotator;
-
-
-	m_GameCharacter = nullptr;
-
-	//for (int32 i = 0; i < m_NumberOfSpheres; i++)
-	//{
-	//	FString IntAsString = FString::FromInt(i);
-	//	UStaticMeshComponent* staticMesh = CreateDefaultSubobject<UStaticMeshComponent>(*IntAsString);
-	//	staticMesh->SetupAttachment(RootComponent);
-	//	m_SpheresArray.Push(staticMesh);
-	//}
+	m_RotatingMovementComp->RotationRate=FRotator::ZeroRotator;
 	
 	bReplicates = false;
 	SetReplicateMovement(false);
@@ -51,31 +37,6 @@ void AOrbitingActor::BeginPlay()
 	Super::BeginPlay();
 
 	m_RotatingMovementComp->Deactivate();
-}
-/******************************************************************************************************************************************************************************************************/
-void AOrbitingActor::OnRep_SpheresArray()
-{
-	for (auto& mesh : m_SpheresArray)
-	{
-		if (mesh)
-			mesh->SetMaterial(0, m_MaterialsArray[int32(mesh->GetType()) % 3]);
-		else
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, TEXT("mesh is nullptr"));
-	}
-}
-/******************************************************************************************************************************************************************************************************/
-void AOrbitingActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-	DOREPLIFETIME(AOrbitingActor, m_SpheresArray);
-}
-/******************************************************************************************************************************************************************************************************/
-// Called every frame
-void AOrbitingActor::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-	m_CurrentRoation = GetActorRotation();
 }
 /******************************************************************************************************************************************************************************************************/
 void AOrbitingActor::DeleteSpheres(int32 id)
@@ -146,6 +107,7 @@ void AOrbitingActorCollisionState::GetLifetimeReplicatedProps(TArray<FLifetimePr
 
 	DOREPLIFETIME(AOrbitingActorCollisionState, m_SpheresArray);
 	DOREPLIFETIME(AOrbitingActorCollisionState, m_ArrayOfStoredGeneratesCallSturcts);
+	DOREPLIFETIME(AOrbitingActorCollisionState, m_RotatingMovementComp);
 }
 /******************************************************************************************************************************************************************************************************/
 void AOrbitingActorCollisionState::BeginPlay()
@@ -226,8 +188,6 @@ void AOrbitingActorCollisionState::OnRep_SpheresArray()
 	{
 		if (mesh)
 			mesh->SetMaterial(0, m_MaterialsArray[int32(mesh->GetType()) % 3]);
-		else
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, TEXT("mesh is nullptr"));
 	}
 	m_bCreateVisSpheres = true;
 }
@@ -265,12 +225,8 @@ void AOrbitingActorCollisionState::Tick(float DeltaTime)
 						createVisibleSphereDelegate.ExecuteIfBound(storedGeneratesCallSturct.id, storedGeneratesCallSturct.angleInRadians, storedGeneratesCallSturct.radius);
 					}
 				}
-				if (!HasAuthority())
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, TEXT("VisSpheres updated"));
 			}
 			m_bCreateVisSpheres = false;
 		}
 	}
-	
-
 }

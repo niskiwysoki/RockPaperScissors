@@ -14,5 +14,4 @@ void AGamePlayerState::GetLifetimeReplicatedProps(TArray <FLifetimeProperty> & O
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(AGamePlayerState, m_PlayerId);
 }

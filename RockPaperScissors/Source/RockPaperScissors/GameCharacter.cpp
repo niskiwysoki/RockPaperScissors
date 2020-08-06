@@ -1,6 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "GameCharacter.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -16,6 +15,7 @@
 #include "Kismet/KismetStringLibrary.h"
 #include "TimerManager.h"
 #include "GameFramework/RotatingMovementComponent.h"
+#include "ShootingTarget.h"
 
 // Sets default values
 AGameCharacter::AGameCharacter()
@@ -39,7 +39,6 @@ AGameCharacter::AGameCharacter()
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 	
-
 	m_bDelegatesBound = false;
 	
 	//spheres
@@ -79,6 +78,13 @@ AGameCharacter::AGameCharacter()
 	m_VisibleOrbitingSpheres->SetupAttachment(RootComponent);
 	m_VisibleOrbitingSpheres->SetAbsolute(false, true, false);		// Spheres rotating independent of actor's orientation
 
+	m_MovingTarget = CreateDefaultSubobject<USceneComponent>(TEXT("Moving Target"));
+	m_MovingTarget->SetupAttachment(RootComponent);
+	m_MovingTarget->SetAbsolute(false, true, false);
+	m_MovingTarget->SetIsReplicated(false);
+
+	m_ShootingTarget = nullptr;
+
 	m_WeaponSK = CreateDefaultSubobject <USkeletalMeshComponent>(TEXT("WeaponSK"));
 	m_WeaponSK->SetupAttachment(GetMesh(), TEXT("WeaponSocket"));
 
@@ -91,7 +97,16 @@ void AGameCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	BindDeleteSpheresDelegateIfNeeded();
+	AttachActorToMovingTarget();
+
 }
+/******************************************************************************************************************************************************************************************************/
+void AGameCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+	m_ShootingTarget->Destroy();
+}
+
 /******************************************************************************************************************************************************************************************************/
 void AGameCharacter::BindDeleteSpheresDelegateIfNeeded()
 {
@@ -114,7 +129,23 @@ void AGameCharacter::BindDeleteSpheresDelegateIfNeeded()
 		}
 	}
 }
-
+/******************************************************************************************************************************************************************************************************/
+void AGameCharacter::AttachActorToMovingTarget()
+{
+	if (m_MovingTarget && m_SubClassOfShootingTarger)
+	{
+		AActor* target = GetWorld()->SpawnActor<AActor>(m_SubClassOfShootingTarger, GetActorLocation() + FVector(0.f, 0.f, 500.f), FRotator::ZeroRotator);
+		if (target)
+		{
+			target->AttachToComponent(m_MovingTarget, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+			if (AShootingTarget* shootingTarget = Cast<AShootingTarget>(target))
+			{
+				m_ShootingTarget = shootingTarget;
+				m_ShootingTarget->GenerateComponents();
+			}
+		}
+	}
+}
 /******************************************************************************************************************************************************************************************************/	
 void AGameCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
@@ -197,23 +228,29 @@ void AGameCharacter::StopCrouching()
 /******************************************************************************************************************************************************************************************************/
 void AGameCharacter::SpeedUpSpheres()
 {
+	m_InterpSpeed += 10;
 	Server_SetRotationRateOfSpheres(m_BoostedRotationRate);
-	/*if (IsLocallyControlled() && !HasAuthority())
-		SetRotationRateOfVisSpheres(m_CurrentRotationRate, true);*/
+	/*if (!HasAuthority())
+		SetRotationRateOfVisSpheres(m_BoostedRotationRate, true);*/
 }
 /******************************************************************************************************************************************************************************************************/
 void AGameCharacter::RestoreSpheresRotationSpeed()
 {
+	m_InterpSpeed -= 10;
 	Server_SetRotationRateOfSpheres(m_BaseRotationRate);
-	/*if (IsLocallyControlled() && !HasAuthority())
-		SetRotationRateOfVisSpheres(m_CurrentRotationRate, true);*/
+	/*if (!HasAuthority())
+		SetRotationRateOfVisSpheres(m_BaseRotationRate, true);*/
 }
 /******************************************************************************************************************************************************************************************************/
 void AGameCharacter::ChangeRotationDirection()
 {
 	Server_SetRotationRateOfSpheres(m_CurrentRotationRate, true);
-	if(!HasAuthority())
-		SetRotationRateOfVisSpheres(m_CurrentRotationRate, true);
+	if (!HasAuthority())
+	{
+		m_CurrentDirection = !m_CurrentDirection;
+		//m_CurrentDirection = !m_CurrentDirection;
+		//SetRotationRateOfVisSpheres(m_CurrentRotationRate, true); 
+	}
 }
 /******************************************************************************************************************************************************************************************************/
 void AGameCharacter::NetMulticast_SpheresRotationChangerate_Implementation(float rot)
@@ -221,6 +258,8 @@ void AGameCharacter::NetMulticast_SpheresRotationChangerate_Implementation(float
 	AOrbitingActorCollisionState* orbitingCollisionActor = Cast<AOrbitingActorCollisionState>(m_CollidingOrbitingSpheres->GetChildActor());
 	if (orbitingCollisionActor)
 		orbitingCollisionActor->GetRotatingMovementComp()->RotationRate.Yaw = rot;
+	 if(!HasAuthority())
+		m_CurrentDirection = !m_CurrentDirection;
 }
 /******************************************************************************************************************************************************************************************************/
 void AGameCharacter::Server_SetRotationRateOfSpheres_Implementation(float rotationRate, bool changeDirection)
@@ -234,9 +273,7 @@ void AGameCharacter::Server_SetRotationRateOfSpheres_Implementation(float rotati
 		if (m_CurrentDirection)
 			orbitingCollActor->GetRotatingMovementComp()->RotationRate.SetComponentForAxis(EAxis::Z, m_CurrentRotationRate );
 		else
-		{
 			orbitingCollActor->GetRotatingMovementComp()->RotationRate.SetComponentForAxis(EAxis::Z, m_CurrentRotationRate * (-1));
-		}
 		NetMulticast_SpheresRotationChangerate(orbitingCollActor->GetRotatingMovementComp()->RotationRate.Yaw);
 	}
 	else
@@ -286,23 +323,19 @@ void AGameCharacter::LookUpAtRate(float Rate)
 /******************************************************************************************************************************************************************************************************/
 void AGameCharacter::SetRotationRateOfVisSpheres(float rotationRate, bool changeDirection)
 {
-	AOrbitingActor* orbitingVisActor = Cast<AOrbitingActor>(m_VisibleOrbitingSpheres->GetChildActor());
-	if (orbitingVisActor)
+	AOrbitingActorCollisionState* orbitingCollActor = Cast<AOrbitingActorCollisionState>(m_CollidingOrbitingSpheres->GetChildActor());
+	if (orbitingCollActor)
 	{
 		m_CurrentRotationRate = rotationRate;
 		if (changeDirection)
 			m_CurrentDirection = !m_CurrentDirection;
 		if (m_CurrentDirection)
-			orbitingVisActor->GetRotatingMovementComp()->RotationRate.SetComponentForAxis(EAxis::Z, m_CurrentRotationRate);
+			orbitingCollActor->GetRotatingMovementComp()->RotationRate.SetComponentForAxis(EAxis::Z, m_CurrentRotationRate);
 		else
-		{
-			orbitingVisActor->GetRotatingMovementComp()->RotationRate.SetComponentForAxis(EAxis::Z,  m_CurrentRotationRate * (-1));
-		}
+			orbitingCollActor->GetRotatingMovementComp()->RotationRate.SetComponentForAxis(EAxis::Z,  m_CurrentRotationRate * (-1));
 	}
 	else
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Cast to VisActorSheres failed"));
-	}
+		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Cast to CollActorSheres failed"));
 }
 /******************************************************************************************************************************************************************************************************/
 void AGameCharacter::MoveForward(float Value)
@@ -429,35 +462,25 @@ void AGameCharacter::Tick(float DeltaTime)
 	AOrbitingActorCollisionState* collidingOrbitngActor = Cast<AOrbitingActorCollisionState>(m_CollidingOrbitingSpheres->GetChildActor());
 	if (visibleOrbitingActor && collidingOrbitngActor)
 	{
-		//const float Target = collidingOrbitngActor->GetActorRotation().Yaw + 360.f;
-		//const float Current = visibleOrbitingActor->GetActorRotation().Yaw + 360.f;
-
-		///*check(abs(Target - Current) < 30.f);*/
-
-		//float Result = FMath::FInterpConstantTo(Current, Target, DeltaTime, m_InterpSpeed);
-		//
-		//Result = FMath::Fmod(Result, 360.f);
-
-		
-
-		//GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Red, FString(TEXT("Rot Current:")) + FString::SanitizeFloat(Current));
-		//GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Red, FString(TEXT("Rot Target:")) + FString::SanitizeFloat(Target));
-
-
-		FRotator newRot = FMath::RInterpTo(visibleOrbitingActor->GetActorRotation(), collidingOrbitngActor->GetActorRotation(), DeltaTime, m_InterpSpeed);
+		FRotator newRot;
+		/*if(HasAuthority())
+		{
+			newRot = FMath::RInterpTo(visibleOrbitingActor->GetActorRotation(), collidingOrbitngActor->GetActorRotation(), DeltaTime, m_InterpSpeed);
+		}
+		else
+		{*/
+			//newRot = FMath::RInterpTo(visibleOrbitingActor->GetActorRotation(), collidingOrbitngActor->GetActorRotation(), DeltaTime, m_InterpSpeed);
+		if (m_CurrentDirection)
+			newRot = FMath::RInterpTo(visibleOrbitingActor->GetActorRotation(), collidingOrbitngActor->GetActorRotation() + FRotator(0.f, m_CurrentRotationRate * 1.5 * DeltaTime, 0.f), DeltaTime, m_InterpSpeed);
+		else
+			newRot = FMath::RInterpTo(visibleOrbitingActor->GetActorRotation(), collidingOrbitngActor->GetActorRotation() - FRotator(0.f, m_CurrentRotationRate * 1.5 * DeltaTime, 0.f), DeltaTime, m_InterpSpeed);
+		/*}*/
 		m_VisibleOrbitingSpheres->SetWorldRotation(newRot);
 	}
 	else
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Red, TEXT("Failed cast to Orbiting actor "));
-	}
-	
-	//if(HasAuthority())
-	/*if(collidingOrbitngActor)
-		GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Red, TEXT("Rot ") + collidingOrbitngActor->GetRotatingMovementComp()->RotationRate.ToString());*/
-	//else	
-	//	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Red, TEXT("Client ") + UKismetStringLibrary::Conv_BoolToString(m_bIsAiming));
-
+	}	
 }
 
 

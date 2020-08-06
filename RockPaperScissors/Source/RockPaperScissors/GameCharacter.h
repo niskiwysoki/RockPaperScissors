@@ -10,6 +10,7 @@ class AOrbitingActor;
 class USpringArmComponent;
 class UCameraComponent;
 class AGameProjectile;
+class AShootingTarget;
 
 UCLASS()
 class ROCKPAPERSCISSORS_API AGameCharacter : public ACharacter
@@ -112,12 +113,15 @@ protected:
 	UFUNCTION(NetMulticast, Reliable)
 	void NetMulticast_SpheresRotationChangerate(float rot);
 
-
 	UFUNCTION(Server, Reliable)
 	void HandleFire();
 
-	
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	void AttachActorToMovingTarget();
+
+	void GenerateMovingTarget();
 
 	void BindDeleteSpheresDelegateIfNeeded();
 
@@ -175,6 +179,9 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
 	UChildActorComponent* m_VisibleOrbitingSpheres;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Gameplay", meta = (AllowPrivateAccess = "true"))
+	USceneComponent* m_MovingTarget;
+
 	UPROPERTY(EditDefaultsOnly, Category = "Aiming", meta = (AllowPrivateAccess = "true"))
 	float m_CrouchingMovementSlowRatio;
 	
@@ -203,4 +210,10 @@ private:
 	bool m_bIsFiringWeapon;
 	bool m_bDelegatesBound;
 	bool m_bIsZooming;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Gameplay")
+	TSubclassOf<AShootingTarget> m_SubClassOfShootingTarger;
+
+	AShootingTarget* m_ShootingTarget;
+	
 };

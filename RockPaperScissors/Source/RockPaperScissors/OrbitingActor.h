@@ -19,9 +19,6 @@ class ROCKPAPERSCISSORS_API AOrbitingActor : public AActor
 public:	
 	AOrbitingActor();
 
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
 	URotatingMovementComponent* GetRotatingMovementComp() const { return m_RotatingMovementComp; }
 
 	TArray<UOrbitingStaticMeshComponent *> GetSpheresArray() const { return m_SpheresArray; }
@@ -34,11 +31,6 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	UFUNCTION()
-	void OnRep_SpheresArray();
-
-	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	URotatingMovementComponent* m_RotatingMovementComp;
 
@@ -46,21 +38,13 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USceneComponent* m_RootComp;
 
-	UPROPERTY(ReplicatedUsing = OnRep_SpheresArray)
 	TArray<UOrbitingStaticMeshComponent*> m_SpheresArray;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Spheres", meta = (AllowPrivateAccess = "true"))
-	float m_RadiusOfRotation;
 
 	UPROPERTY(EditAnywhere, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	UStaticMesh* m_StaticMesh;
 
 	UPROPERTY(EditAnywhere, Category = "Spheres", meta = (AllowPrivateAccess = "true"))
 	TArray<UMaterial*> m_MaterialsArray;
-
-	AGameCharacter* m_GameCharacter;
-
-	FRotator m_CurrentRoation;
 
 };
 /******************************************************************************************************************************************************************************************************/
@@ -114,7 +98,7 @@ protected:
 	UFUNCTION()
 	void OnRep_SpheresArray();
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UPROPERTY(Replicated)
 	URotatingMovementComponent* m_RotatingMovementComp;
 
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;

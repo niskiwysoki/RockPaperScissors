@@ -22,7 +22,9 @@ public:
 
 protected:
 
-	UPROPERTY(Replicated)
+	void GetLifetimeReplicatedProps(TArray <FLifetimeProperty> & OutLifetimeProps) const;
+
+	UPROPERTY(EditAnywhere,BlueprintReadOnly, Category = "Gameplay")
 	int32 m_PlayerId;
 
 private:
